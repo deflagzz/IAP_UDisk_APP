@@ -270,8 +270,7 @@ int main(void)
 	OS_ERR err;
 	CPU_SR_ALLOC();
 	
-	SCB->VTOR = FLASH_BASE | 0x8000;//设置偏移量
-	
+	IAP_IRQ_Remap_Init(0x8000);		  				//设置偏移量32K=0x8000
 
 	delay_init(168);  	//时钟初始化
 	NVIC_PriorityGroupConfig(NVIC_PriorityGroup_2);//中断分组配置
@@ -290,7 +289,7 @@ int main(void)
 	
 	ADC1_Configuration();				//电位器采集
 	USART1_Configuration(9600); 		//串口1 PA9PA10 现在换成喇叭线
-	USART2_Configuration(115200);			//以太网转串口的接口
+	USART2_Configuration(115200);		//以太网转串口的接口
 	USART3_Configuration(9600);			//现在是锂电池电量检测的口 -- 232转TTL串口
 	uart4_init(9600);					//触摸屏485
 	//USART6_Configuration(115200);		
@@ -308,30 +307,16 @@ int main(void)
 
 	WIFI_init(AGV_SYS.ID); 
 	
-/*************************************U盘IAP***********************************************/	
-	my_mem_init(SRAMIN);	//初始化内部内存池	
- 	exfuns_init();			//为fatfs相关变量申请内存 
-
-	#if USB_DISK_allow
-	f_mount(fs[0],"0:",1); 	//挂载U盘
-	#endif
-	#if EX_FLASH_allow
-	f_mount(fs[1],"1:",1); 	//挂载SPI Flash
-	#endif
-	#if SD_CARD_allow	
-	f_mount(fs[2],"2:",1); 	//挂载SD卡  
-	#endif
-	//初始化USB主机
-  	USBH_Init(&USB_OTG_Core,USB_OTG_FS_CORE_ID,&USB_Host,&USBH_MSC_cb,&USR_Callbacks); 	
-	INTX_ENABLE();
-/*************************************U盘IAP**********************************************/	
+	IAP_U_Disk_Init();				//USB初始化
+	                                                                                   
+	
 	
 /**************************************************************************************/
-	OSInit(&err);		//初始化UCOSIII
-	OS_CRITICAL_ENTER();//进入临界区
+	OSInit(&err);			//初始化UCOSIII
+	OS_CRITICAL_ENTER();	//进入临界区
 	//创建开始任务
 	OSTaskCreate((OS_TCB 	* )&StartTaskTCB,		//任务控制块
-								 (CPU_CHAR	* )"start task", 		//任务名字
+								 (CPU_CHAR	* )"start task", 			//任务名字
                  (OS_TASK_PTR )start_task, 			//任务函数
                  (void		* )0,					//传递给任务函数的参数
                  (OS_PRIO	  )START_TASK_PRIO,     //任务优先级
@@ -343,10 +328,10 @@ int main(void)
                  (void   	* )0,					//用户补充的存储区
                  (OS_OPT      )OS_OPT_TASK_STK_CHK|OS_OPT_TASK_STK_CLR, //任务选项
                  (OS_ERR 	* )&err);				//存放该函数错误时的返回值
-	OS_CRITICAL_EXIT();	//退出临界区	 
-	OSStart(&err);  //开启UCOSIII								 
+	OS_CRITICAL_EXIT();		//退出临界区	 
+	OSStart(&err);  		//开启UCOSIII								 
 }
-
+/**************************************************************************************/
 
 void start_task(void *p_arg)		//开始任务函数
 {
@@ -2844,25 +2829,12 @@ void Task24_task(void *p_arg)		//计时器:客户自定义超时无任务回原点
 
 void Task25_task(void *p_arg)		//USB
 {
-	u8 temp=0;
 	p_arg = p_arg;
 	
 	while(1)
 	{	
+		IAP_U_Disk_UpData();
 		
-		USBH_Process(&USB_OTG_Core, &USB_Host);
-		if(temp == 50)
-		{
-			BEEP = 1;
-			delay_rtos(0,0,0,30);
-			BEEP = 0;
-			
-			temp = 0;
-		}
-		temp++;
-			
-		
-		delay_rtos(0,0,0,10);
 	}
 }
 

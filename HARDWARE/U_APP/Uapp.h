@@ -22,8 +22,9 @@ extern stm32_iap 	g_iap;
 extern USBH_HOST  	USB_Host;
 extern USB_OTG_CORE_HANDLE  USB_OTG_Core;
 
-
-
+void IAP_IRQ_Remap_Init(u32 sizi);
+void IAP_U_Disk_Init(void);
+void IAP_U_Disk_UpData(void);
 
 #endif
 
